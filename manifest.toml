@@ -1,0 +1,45 @@
+name = "chainlistener"
+
+[defaults]
+builder = "exec:go"
+runner = "local:exec"
+
+[builders."docker:go"]
+enabled = true
+go_version = "1.17"
+build_base_image = "golang:1.17.8-buster"
+enable_go_build_cache = true
+
+[builders."docker:generic"]
+enabled = true
+build_base_image = "golang:1.17.8-buster"
+go_version = "1.17"
+enable_go_build_cache = true
+
+[builders."docker:generic".build_args]
+GO_PROXY = "https://proxy.golang.org"
+RABBIT_URL = "rabbitmq"
+
+[builders."exec:go"]
+enabled = true
+go_version = "1.17"
+
+[runners."local:docker"]
+enabled = true
+
+[runners."local:exec"]
+enabled = true
+
+[runners."cluster:swarm"]
+enabled = true
+
+[runners."cluster:k8s"]
+enabled = true
+
+[[testcases]]
+name = "simple"
+instances = { min = 2, max = 2, default = 2 }
+
+[[testcases]]
+name = "4to1"
+instances = { min = 4, max = 4, default = 4 }

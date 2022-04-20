@@ -1,4 +1,4 @@
-name = "chainlistener"
+name = "learning-example"
 
 [defaults]
 builder = "exec:go"

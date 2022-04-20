@@ -102,10 +102,13 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 	var consumer *MockConsumer
 	var totalMessages = (runenv.TestGroupInstanceCount - 1) * messagesByNode
 
+	// form queue name in rabbit unique to this run, so we can avoid message conflicts
+	var rabbitQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
+
 	if seq == 1 {
 		// ID 1 - consumer
 		runenv.RecordMessage("Expecting %d messages by node, %d total", messagesByNode, totalMessages)
-		listn = &listener.RabbitListener{QueueName: "TestQueue"}
+		listn = &listener.RabbitListener{QueueName: rabbitQueueName}
 
 		consumer = &MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
 		consumer.On("ConsumeMessage", mock.Anything).Return(nil)
@@ -114,7 +117,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 		// ID 2 - producer
 		prod = &producer.RabbitProducer{
 			IdGen:     0,
-			QueueName: "TestQueue",
+			QueueName: rabbitQueueName,
 		}
 	}
 

@@ -34,7 +34,6 @@ $ testground run single --plan tg-learning --testcase simple --builder docker:ge
 
 Apache software license v2
 
-**Free Software, Hell Yeah!**
 
 [//]: # (Reference links)
 

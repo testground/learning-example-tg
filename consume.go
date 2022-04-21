@@ -11,6 +11,7 @@ import (
 	"github.com/testground/learning-example/pkg/message"
 	"github.com/testground/learning-example/pkg/processor"
 	"github.com/testground/learning-example/pkg/producer"
+	"github.com/testground/learning-example/pkg/rabbit"
 
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
@@ -57,7 +58,6 @@ func RunProcessingTest(runenv *runtime.RunEnv, initCtx *run.InitContext, message
 // Runs a test between several nodes, where each producer node will create *messagesByNode*
 // total messages, and the single consumer node will consume all of them
 func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, messagesByNode int) error {
-
 	client := initCtx.SyncClient
 	netclient := initCtx.NetClient
 
@@ -104,6 +104,9 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 
 	// form queue name in rabbit unique to this run, so we can avoid message conflicts
 	var rabbitQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
+	// clean up the queue after tests
+	rabbitConn := rabbit.GetConnection()
+	defer rabbit.DeleteQueue(rabbitConn, rabbitQueueName)
 
 	if seq == 1 {
 		// ID 1 - consumer

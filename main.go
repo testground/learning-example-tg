@@ -1,12 +1,15 @@
 package main
 
 import (
+	"github.com/testground/learning-example-tg/pkg/rabbit"
+	"github.com/testground/learning-example-tg/pkg/tgsync"
 	"github.com/testground/sdk-go/run"
 )
 
 var testcases = map[string]interface{}{
-	"simple": run.InitializedTestCaseFn(SimpleTest),
-	"4to1":   run.InitializedTestCaseFn(FourToOne),
+	"rabbit-1to1":  run.InitializedTestCaseFn(rabbit.OneOnOne),
+	"rabbit-4to1":  run.InitializedTestCaseFn(rabbit.FourToOne),
+	"tg-sync-1to1": run.InitializedTestCaseFn(tgsync.OneOnOne),
 }
 
 func main() {

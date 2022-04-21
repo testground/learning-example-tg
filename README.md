@@ -13,11 +13,11 @@ git clone https://github.com/testground/learning-example-tg
 cd learning-example-tg
 
 # import all test plans from the repository
-$ testground plan import --from .
+$ testground plan import --from . --name tg-learning
 
 # run two instances of the `simple` test case
 # building with generic:docker, running with local:docker
-$ testground run single --plan tg-learning --testcase simple --builder docker:generic --runner local:docker --instances 2
+$ testground run single --plan tg-learning --testcase tgsync-1to1 --builder docker:generic --runner local:docker --instances 2
 ```
 
 ## Featured test plans

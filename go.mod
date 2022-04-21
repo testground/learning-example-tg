@@ -1,4 +1,4 @@
-module github.com/brdji/chain-listener-testground
+module github.com/testground/learning-example-tg
 
 go 1.17
 

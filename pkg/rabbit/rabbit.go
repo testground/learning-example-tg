@@ -1,4 +1,4 @@
-package main
+package rabbit
 
 import (
 	"context"
@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/mock"
+	"github.com/testground/learning-example-tg/pkg/types"
+	"github.com/testground/learning-example-tg/pkg/util"
 	"github.com/testground/learning-example/pkg/listener"
-	"github.com/testground/learning-example/pkg/message"
 	"github.com/testground/learning-example/pkg/processor"
 	"github.com/testground/learning-example/pkg/producer"
 	"github.com/testground/learning-example/pkg/rabbit"
@@ -18,23 +19,7 @@ import (
 	"github.com/testground/sdk-go/runtime"
 )
 
-type MockConsumer struct {
-	// add a Mock object instance
-	mock.Mock
-	// other fields go here as normal
-	TotalCount  int
-	DoneChannel chan bool
-}
-
-func (test *MockConsumer) ConsumeMessage(msg *message.DataMessage) {
-	test.Called(msg)
-	test.TotalCount--
-	if test.TotalCount <= 0 {
-		test.DoneChannel <- true
-	}
-}
-
-func RunProcessingTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByNode int) error {
+func runRabbitTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByNode int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
@@ -90,7 +75,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 	// Make sure that the IP addresses don't change unless we request it.
 	if newAddrs, err := net.InterfaceAddrs(); err != nil {
 		return err
-	} else if !sameAddrs(oldAddrs, newAddrs) {
+	} else if !util.SameAddrs(oldAddrs, newAddrs) {
 		return fmt.Errorf("interfaces changed")
 	}
 
@@ -99,7 +84,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 	var prod producer.Producer
 	var listn listener.Listener
 	var procsr *processor.Processor
-	var consumer *MockConsumer
+	var consumer *types.MockConsumer
 	var totalMessages = (runenv.TestGroupInstanceCount - 1) * messagesByNode
 
 	// form queue name in rabbit unique to this run, so we can avoid message conflicts
@@ -113,7 +98,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 		runenv.RecordMessage("Expecting %d messages by node, %d total", messagesByNode, totalMessages)
 		listn = &listener.RabbitListener{QueueName: rabbitQueueName}
 
-		consumer = &MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
+		consumer = &types.MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
 		consumer.On("ConsumeMessage", mock.Anything).Return(nil)
 		procsr = &processor.Processor{Producer: nil, Consumer: consumer, Listener: listn}
 	} else {
@@ -155,20 +140,4 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 	}
 
 	return nil
-}
-
-func sameAddrs(a, b []net.Addr) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	aset := make(map[string]bool, len(a))
-	for _, addr := range a {
-		aset[addr.String()] = true
-	}
-	for _, addr := range b {
-		if !aset[addr.String()] {
-			return false
-		}
-	}
-	return true
 }

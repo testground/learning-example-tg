@@ -45,5 +45,9 @@ name = "rabbit-4to1"
 instances = { min = 4, max = 4, default = 4 }
 
 [[testcases]]
+name = "rabbit-failing-timeout"
+instances = { min = 2, max = 2, default = 2 }
+
+[[testcases]]
 name = "tg-sync-1to1"
 instances = { min = 2, max = 2, default = 2 }

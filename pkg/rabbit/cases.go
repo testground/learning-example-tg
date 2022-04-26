@@ -15,3 +15,8 @@ func OneOnOne(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 func FourToOne(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	return runRabbitTest(runenv, initCtx, 25)
 }
+
+// A test with composed with 2 instances, aimed to fail (no messages will be sent by the producer)
+func FailingTimeout(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	return runRabbitTest(runenv, initCtx, 0)
+}

@@ -7,9 +7,10 @@ import (
 )
 
 var testcases = map[string]interface{}{
-	"rabbit-1to1":  run.InitializedTestCaseFn(rabbit.OneOnOne),
-	"rabbit-4to1":  run.InitializedTestCaseFn(rabbit.FourToOne),
-	"tg-sync-1to1": run.InitializedTestCaseFn(tgsync.OneOnOne),
+	"rabbit-1to1":            run.InitializedTestCaseFn(rabbit.OneOnOne),
+	"rabbit-4to1":            run.InitializedTestCaseFn(rabbit.FourToOne),
+	"rabbit-failing-timeout": run.InitializedTestCaseFn(rabbit.FailingTimeout),
+	"tg-sync-1to1":           run.InitializedTestCaseFn(tgsync.OneOnOne),
 }
 
 func main() {

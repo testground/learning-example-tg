@@ -19,8 +19,9 @@ import (
 	"github.com/testground/sdk-go/runtime"
 )
 
+// Wraps a test in a context that will timeout after a set amount of time
 func runRabbitTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByNode int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	var notifyChan = make(chan bool)
@@ -114,7 +115,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 		runenv.RecordMessage("Listening for messages")
 		go func() { procsr.StartProcessor() }()
 	default:
-		runenv.RecordMessage("Doing nothing")
+		// runenv.RecordMessage("Doing nothing")
 	}
 	if err != nil {
 		return err

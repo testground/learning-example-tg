@@ -106,7 +106,7 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		runenv.RecordMessage("Listening for messages")
 		go func() { procsr.StartProcessor() }()
 	default:
-		runenv.RecordMessage("Doing nothing")
+		// runenv.RecordMessage("Doing nothing")
 	}
 	if err != nil {
 		return err

@@ -49,6 +49,10 @@ name = "rabbit-failing-timeout"
 instances = { min = 2, max = 2, default = 2 }
 
 [[testcases]]
+name = "rabbit-failing-policy"
+instances = { min = 2, max = 2, default = 2 }
+
+[[testcases]]
 name = "tg-sync-1to1"
 instances = { min = 2, max = 2, default = 2 }
 

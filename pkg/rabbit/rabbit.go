@@ -19,15 +19,20 @@ import (
 	"github.com/testground/sdk-go/runtime"
 )
 
+type RabbitTestParams struct {
+	MessagesByNode int
+	RoutingPolicy  network.RoutingPolicyType
+}
+
 // Wraps a test in a context that will timeout after a set amount of time
-func runRabbitTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByNode int) error {
+func runRabbitTest(runenv *runtime.RunEnv, initCtx *run.InitContext, testParams *RabbitTestParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	var notifyChan = make(chan bool)
 
 	go func() {
-		runTest(runenv, initCtx, ctx, messagesByNode)
+		runTest(runenv, initCtx, ctx, testParams)
 		notifyChan <- true
 	}()
 
@@ -43,7 +48,7 @@ func runRabbitTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByN
 
 // Runs a test between several nodes, where each producer node will create *messagesByNode*
 // total messages, and the single consumer node will consume all of them
-func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, messagesByNode int) error {
+func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, testParams *RabbitTestParams) error {
 	client := initCtx.SyncClient
 	netclient := initCtx.NetClient
 
@@ -52,24 +57,8 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 		return err
 	}
 
-	config := &network.Config{
-		// Control the "default" network. At the moment, this is the only network.
-		Network: "default",
-
-		// Enable this network. Setting this to false will disconnect this test
-		// instance from this network. You probably don't want to do that.
-		Enable: true,
-		Default: network.LinkShape{
-			Latency:   100 * time.Millisecond,
-			Bandwidth: 1 << 20, // 1Mib
-		},
-		CallbackState: "network-configured",
-		// Required: will not be able to connect to rabbitMQ otherwise
-		RoutingPolicy: network.AllowAll,
-	}
-
-	runenv.RecordMessage("before netclient.MustConfigureNetwork")
-	netclient.MustConfigureNetwork(ctx, config)
+	// Configure network according to desired routing policy
+	util.ConfigureNetwork(netclient, testParams.RoutingPolicy, ctx)
 
 	seq := client.MustSignalAndWait(ctx, "ip-allocation", runenv.TestInstanceCount)
 
@@ -86,7 +75,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 	var listn listener.Listener
 	var procsr *processor.Processor
 	var consumer *types.MockConsumer
-	var totalMessages = (runenv.TestGroupInstanceCount - 1) * messagesByNode
+	var totalMessages = (runenv.TestGroupInstanceCount - 1) * testParams.MessagesByNode
 
 	// form queue name in rabbit unique to this run, so we can avoid message conflicts
 	var rabbitQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
@@ -96,7 +85,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 
 	if seq == 1 {
 		// ID 1 - consumer
-		runenv.RecordMessage("Expecting %d messages by node, %d total", messagesByNode, totalMessages)
+		runenv.RecordMessage("Expecting %d messages by node, %d total", testParams.MessagesByNode, totalMessages)
 		listn = &listener.RabbitListener{QueueName: rabbitQueueName}
 
 		consumer = &types.MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
@@ -128,7 +117,7 @@ func runTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Conte
 				return fmt.Errorf("expected all messages to be processed")
 			}
 		} else {
-			for i := 0; i < messagesByNode; i++ {
+			for i := 0; i < testParams.MessagesByNode; i++ {
 				prod.ProduceMessage(fmt.Sprintf("Test message #%d #%d", i, seq))
 			}
 			runenv.RecordMessage("Finished producing messages")

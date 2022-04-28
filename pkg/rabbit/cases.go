@@ -1,6 +1,9 @@
 package rabbit
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -8,10 +11,20 @@ import (
 
 // A test composed of 2 instances: one is the producer, and the other the consumer
 func OneOnOne(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	// We use the given "messages" parameter passed either through the command line, or using a default
+	// value, specified in the manifest file
+	var messagesParam = runenv.RunParams.StringParam("messages")
+	messages, err := strconv.Atoi(messagesParam)
+
+	if err != nil {
+		return fmt.Errorf("invalid param 'messages': %s", messagesParam)
+	}
+
 	params := &RabbitTestParams{
-		MessagesByNode: 50,
+		MessagesByNode: messages,
 		RoutingPolicy:  network.AllowAll,
 	}
+
 	return runRabbitTest(runenv, initCtx, params)
 }
 

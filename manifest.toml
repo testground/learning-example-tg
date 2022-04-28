@@ -40,6 +40,11 @@ enabled = true
 name = "rabbit-1to1"
 instances = { min = 2, max = 2, default = 2 }
 
+      [testcases.params]
+        # an simple parameter in this test case: you can specify a different value from the command line
+        # e.g. --test-param messages=20
+        messages   = { type = "int", default = 50 }
+
 [[testcases]]
 name = "rabbit-4to1"
 instances = { min = 4, max = 4, default = 4 }

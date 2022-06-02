@@ -60,23 +60,24 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		return fmt.Errorf("interfaces changed")
 	}
 
-	runenv.RecordMessage("I am %d", seq)
+	// determine instance role based on run params, seq ID, etc.
+	var role = getInstanceRole(runenv, seq)
 
 	var prod producer.Producer
 	var listn *TgSyncListener
 	var procsr *processor.Processor
 	var consumer *types.MockConsumer
-	var totalMessages = (runenv.TestGroupInstanceCount - 1) * messagesByNode
+	var totalMessages = (runenv.TestInstanceCount - 1) * messagesByNode
 
-	// form queue name in rabbit unique to this run, so we can avoid message conflicts
+	// form queue name unique to this run, so we can avoid message conflicts
 	var testQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
 
 	st := sync.NewTopic(testQueueName, &message.DataMessage{})
 
 	tch := make(chan *message.DataMessage)
 
-	if seq == 1 {
-		// ID 1 - consumer
+	if role == ConsumerRole {
+		// consumer
 		runenv.RecordMessage("Expecting %d messages by node, %d total", messagesByNode, totalMessages)
 		// custom sync listener
 		_, err = client.Subscribe(ctx, st, tch)
@@ -88,8 +89,11 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		consumer = &types.MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
 		consumer.On("ConsumeMessage", mock.Anything).Return(nil)
 		procsr = &processor.Processor{Producer: nil, Consumer: consumer, Listener: listn}
+
+		runenv.RecordMessage("Listening for messages")
+		go func() { procsr.StartProcessor() }()
 	} else {
-		// ID 2 - producer
+		// producer
 		prod = &TgSyncProducer{
 			IdGen:  0,
 			Client: client,
@@ -97,19 +101,12 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		}
 	}
 
-	switch seq {
-	case 1:
-		runenv.RecordMessage("Listening for messages")
-		go func() { procsr.StartProcessor() }()
-	default:
-		// runenv.RecordMessage("Doing nothing")
-	}
 	if err != nil {
 		return err
 	}
 
 	testFunc := func() error {
-		if seq == 1 {
+		if role == ConsumerRole {
 			// Wait for done signal by the consumer
 			done := <-consumer.DoneChannel
 			if !done {

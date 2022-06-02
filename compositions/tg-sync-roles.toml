@@ -1,0 +1,46 @@
+# This is an example composition file. It references an existing standalone test case,
+# but with additional configuration.
+# To schedule a test run using this composition file, you must first build the plan:
+# $ testground build composition -f tg-sync-roles.toml tg -w
+# then run it:
+# $ testground run composition -f tg-sync-roles.toml
+
+# Name of the composition file and the author
+[metadata]
+name    = "tg-sync-roles"
+author  = "brdji"
+
+# Plan and test case details: must reference an existing plan
+[global]
+plan    = "tg-learning"
+case    = "tg-sync-manyto1"
+builder = "docker:go"
+runner  = "local:docker"
+
+# The total number of instances must:
+# 1. Be in the allowed range in the manifest file
+# 2. Must be equal to the sum of all instances defined in each group
+total_instances = 10
+
+# First group: a single message consumer (listening for messages)
+[[groups]]
+id = "consumer"
+
+  [groups.instances]
+  count = 1
+
+  [groups.run]
+    # We can define additional parameters here, such as a role (see tgsync/roles.go for further info)
+    [groups.run.test_params]
+      role = "consumer"
+
+# Second group: message producers
+[[groups]]
+id = "producers"
+
+  [groups.instances]
+    count = 9
+  
+  [groups.run]
+    [groups.run.test_params]
+      role = "producer"

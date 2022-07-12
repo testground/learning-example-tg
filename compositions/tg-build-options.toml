@@ -1,0 +1,58 @@
+# This is an example composition file. It references an existing standalone test case,
+# but with additional configuration.
+
+# To schedule a test run using this composition file, you must first build the plan:
+# $ testground build composition -f tg-build-options.toml tg -w
+# then run it:
+# $ testground run composition -f tg-build-options.toml
+
+# This composition file demonstrates various build options, build groups, etc.
+# Each build group can have different build and run options, runtime arguments, 
+# environment variables, etc.
+
+[metadata]
+name    = "tg-build-options"
+author  = "brdji"
+
+# Plan and test case details: must reference an existing plan (from the manifest file)
+[global]
+plan    = "tg-learning"
+case    = "basic"
+builder = "docker:generic"
+runner  = "local:docker"
+
+# The total number of instances must:
+# 1. Be in the allowed range in the manifest file
+# 2. Must be equal to the sum of all instances defined in each group
+total_instances = 5
+
+# First group
+[[groups]]
+id = "group_1"
+
+  [groups.instances]
+  count = 3
+
+  [groups.build_config]
+    # we can specify which build image to use as the base image during the build process
+    docker_build_image  = 'golang:1.14-buster'
+    # the modfile, as well
+    modfile = 'go.mod'
+    # and the path (starting from plan root)
+    path = "newpkg"
+
+  [groups.build]
+  selectors = ["consumer"]
+
+# Second group: separate build options
+[[groups]]
+id = "group_2"
+
+  [groups.instances]
+    count = 2
+
+    [groups.build_config]
+    # groups can have different build options: we have overidden the build image and modfile
+    docker_build_image  = 'golang:1.16-buster'
+    modfile = 'go.v2.mod'
+    path = "newpkg"

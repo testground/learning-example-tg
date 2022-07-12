@@ -14,7 +14,8 @@ enable_go_build_cache = true
 enabled = true
 build_base_image = "golang:1.17.8-buster"
 go_version = "1.17"
-enable_go_build_cache = true
+# builder cache is disabled because it cannot be used when using a custom build image
+enable_go_build_cache = false
 
 [builders."docker:generic".build_args]
 GO_PROXY = "https://proxy.golang.org"
@@ -35,6 +36,10 @@ enabled = true
 
 [runners."cluster:k8s"]
 enabled = true
+
+[[testcases]]
+name = "basic"
+instances = { min = 5, max = 5, default = 5 }
 
 [[testcases]]
 name = "rabbit-1to1"

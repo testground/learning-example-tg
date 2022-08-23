@@ -3,6 +3,7 @@ module github.com/testground/learning-example-tg
 go 1.17
 
 require (
+	github.com/google/uuid v1.1.1
 	github.com/stretchr/testify v1.7.1
 	github.com/testground/learning-example v0.0.0-20220420150851-44fbf56a39ba
 	github.com/testground/sdk-go v0.3.0

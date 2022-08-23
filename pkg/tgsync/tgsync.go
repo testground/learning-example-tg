@@ -2,12 +2,12 @@ package tgsync
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"net"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-	"github.com/testground/learning-example-tg/pkg/types"
 	"github.com/testground/learning-example-tg/pkg/util"
 	"github.com/testground/learning-example/pkg/processor"
 	"github.com/testground/learning-example/pkg/producer"
@@ -46,8 +46,17 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 	client := sync.MustBoundClient(ctx, runenv)
 	defer client.Close()
 
+	runenv.RecordStart() // record start event
+	// emit a metric
+	runenv.R().RecordPoint("time-to-find", float64(time.Now().Unix()))
+
+	c := "some GUID"
+	// emit a message
+	runenv.RecordMessage("provided content ID: %s", c)
+
 	oldAddrs, err := net.InterfaceAddrs()
 	if err != nil {
+		runenv.RecordFailure(err)
 		return err
 	}
 
@@ -55,8 +64,10 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 
 	// Make sure that the IP addresses don't change unless we request it.
 	if newAddrs, err := net.InterfaceAddrs(); err != nil {
+		runenv.RecordFailure(err)
 		return err
 	} else if !util.SameAddrs(oldAddrs, newAddrs) {
+		runenv.RecordFailure(err)
 		return fmt.Errorf("interfaces changed")
 	}
 
@@ -66,13 +77,15 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 	var prod producer.Producer
 	var listn *TgSyncListener
 	var procsr *processor.Processor
-	var consumer *types.MockConsumer
+	var consumer TgSyncConsumer
 	var totalMessages = (runenv.TestInstanceCount - 1) * messagesByNode
 
 	// form queue name unique to this run, so we can avoid message conflicts
 	var testQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
 
-	st := sync.NewTopic(testQueueName, &message.DataMessage{})
+	st := sync.NewTopic(testQueueName, &message.DataMessage{
+		Id: uuid.New().String(),
+	})
 
 	tch := make(chan *message.DataMessage)
 
@@ -82,13 +95,13 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		// custom sync listener
 		_, err = client.Subscribe(ctx, st, tch)
 		if err != nil {
+			runenv.RecordFailure(err)
 			panic(err)
 		}
 		listn = &TgSyncListener{ListenChannel: tch}
 		// custom mock consumer
-		consumer = &types.MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
-		consumer.On("ConsumeMessage", mock.Anything).Return(nil)
-		procsr = &processor.Processor{Producer: nil, Consumer: consumer, Listener: listn}
+		consumer = TgSyncConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool), IdGen: int32(seq)}
+		procsr = &processor.Processor{Producer: nil, Consumer: &consumer, Listener: listn}
 
 		runenv.RecordMessage("Listening for messages")
 		go func() { procsr.StartProcessor() }()
@@ -101,20 +114,19 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		}
 	}
 
-	if err != nil {
-		return err
-	}
-
 	testFunc := func() error {
 		if role == ConsumerRole {
 			// Wait for done signal by the consumer
 			done := <-consumer.DoneChannel
 			if !done {
+				runenv.RecordFailure(errors.New("expected all messages to be processed"))
 				return fmt.Errorf("expected all messages to be processed")
 			}
 		} else {
 			for i := 0; i < messagesByNode; i++ {
-				prod.ProduceMessage(fmt.Sprintf("Test message #%d #%d", i, seq))
+				msg := fmt.Sprintf("Test message #%d #%d", i, seq)
+				prod.ProduceMessage(msg)
+				runenv.RecordMessage("Producing message:" + msg)
 			}
 			runenv.RecordMessage("Finished producing messages")
 		}
@@ -125,5 +137,11 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		return err
 	}
 
+	runenv.RecordSuccess()
+	filePath, err := runenv.CreateRandomFile("./", 2*1024) // 2MB
+	if err != nil {
+		return err
+	}
+	fmt.Println("Output file created on location: " + filePath)
 	return nil
 }

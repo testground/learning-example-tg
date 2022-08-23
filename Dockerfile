@@ -81,6 +81,7 @@ COPY --from=builder /testground_dep_list /
 COPY --from=builder ${PLAN_DIR}/testplan.bin /testplan
 
 ARG RABBIT_URL="rabbitmq"
+ARG INFLUXDB_URL="influxdb"
 
 ENV ENV_TYPE=docker
 ENV PORT=8081

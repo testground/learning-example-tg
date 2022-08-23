@@ -50,3 +50,18 @@ func (prod *TgSyncProducer) ProduceMessage(data string) {
 
 	prod.Client.Publish(context.TODO(), prod.Topic, msg)
 }
+
+type TgSyncConsumer struct {
+	IdGen int32
+	// other fields go here as normal
+	TotalCount  int
+	DoneChannel chan bool
+}
+
+func (cons *TgSyncConsumer) ConsumeMessage(msg *message.DataMessage) {
+	cons.TotalCount--
+	if cons.TotalCount <= 0 {
+		cons.DoneChannel <- true
+	}
+	fmt.Printf("Consumed message: %s data :%s\n", msg.Id, msg.Data)
+}

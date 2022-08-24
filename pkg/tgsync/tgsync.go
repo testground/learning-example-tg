@@ -2,7 +2,6 @@ package tgsync
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"net"
@@ -43,20 +42,12 @@ func RunTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByN
 // total messages, and the single consumer node will consume all of them
 func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, messagesByNode int) error {
 	// create a bounded client to send messages between instances
+	runenv.RecordMessage("Test plan started...")
 	client := sync.MustBoundClient(ctx, runenv)
 	defer client.Close()
 
-	runenv.RecordStart() // record start event
-	// emit a metric
-	runenv.R().RecordPoint("time-to-find", float64(time.Now().Unix()))
-
-	c := "some GUID"
-	// emit a message
-	runenv.RecordMessage("provided content ID: %s", c)
-
 	oldAddrs, err := net.InterfaceAddrs()
 	if err != nil {
-		runenv.RecordFailure(err)
 		return err
 	}
 
@@ -64,10 +55,8 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 
 	// Make sure that the IP addresses don't change unless we request it.
 	if newAddrs, err := net.InterfaceAddrs(); err != nil {
-		runenv.RecordFailure(err)
 		return err
 	} else if !util.SameAddrs(oldAddrs, newAddrs) {
-		runenv.RecordFailure(err)
 		return fmt.Errorf("interfaces changed")
 	}
 
@@ -95,8 +84,7 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		// custom sync listener
 		_, err = client.Subscribe(ctx, st, tch)
 		if err != nil {
-			runenv.RecordFailure(err)
-			panic(err)
+			return err
 		}
 		listn = &TgSyncListener{ListenChannel: tch}
 		// custom mock consumer
@@ -119,7 +107,6 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 			// Wait for done signal by the consumer
 			done := <-consumer.DoneChannel
 			if !done {
-				runenv.RecordFailure(errors.New("expected all messages to be processed"))
 				return fmt.Errorf("expected all messages to be processed")
 			}
 		} else {
@@ -137,7 +124,6 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		return err
 	}
 
-	runenv.RecordSuccess()
 	filePath, err := runenv.CreateRandomFile("./", 2*1024) // 2MB
 	if err != nil {
 		return err

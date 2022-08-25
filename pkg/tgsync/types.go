@@ -56,6 +56,7 @@ type TgSyncConsumer struct {
 	// other fields go here as normal
 	TotalCount  int
 	DoneChannel chan bool
+	Client      *sync.DefaultClient
 }
 
 func (cons *TgSyncConsumer) ConsumeMessage(msg *message.DataMessage) {

@@ -88,7 +88,7 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		}
 		listn = &TgSyncListener{ListenChannel: tch}
 		// custom mock consumer
-		consumer = TgSyncConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool), IdGen: int32(seq)}
+		consumer = TgSyncConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool), IdGen: int32(seq), Client: client}
 		procsr = &processor.Processor{Producer: nil, Consumer: &consumer, Listener: listn}
 
 		runenv.RecordMessage("Listening for messages")

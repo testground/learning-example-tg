@@ -42,6 +42,11 @@ func RunTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByN
 // total messages, and the single consumer node will consume all of them
 func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, messagesByNode int) error {
 	// create a bounded client to send messages between instances
+	runenv.RecordStart() // record start event
+	// emit a metric
+	runenv.R().RecordPoint("time-to-find", float64(time.Now().Unix()))
+
+	// emit a message
 	runenv.RecordMessage("Test plan started...")
 	client := sync.MustBoundClient(ctx, runenv)
 	defer client.Close()
@@ -119,15 +124,6 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		}
 		return nil
 	}
-	err = testFunc()
-	if err != nil {
-		return err
-	}
 
-	filePath, err := runenv.CreateRandomFile("./", 2*1024) // 2MB
-	if err != nil {
-		return err
-	}
-	fmt.Println("Output file created on location: " + filePath)
-	return nil
+	return testFunc()
 }

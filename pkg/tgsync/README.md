@@ -12,5 +12,5 @@ Navigate to the project root directory
 testground plan import --from . --name tg-learning
 
 # Run a test case
-testground run single --plan tg-learning --testcase tgsync-1to1 --builder docker:generic --runner local:docker --instances 4
+testground run single --plan tg-learning --testcase tg-sync-1to1 --builder docker:generic --runner local:docker --instances 4
 ```

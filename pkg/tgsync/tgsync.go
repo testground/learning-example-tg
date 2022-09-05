@@ -3,11 +3,10 @@ package tgsync
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"net"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-	"github.com/testground/learning-example-tg/pkg/types"
 	"github.com/testground/learning-example-tg/pkg/util"
 	"github.com/testground/learning-example/pkg/processor"
 	"github.com/testground/learning-example/pkg/producer"
@@ -43,6 +42,12 @@ func RunTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, messagesByN
 // total messages, and the single consumer node will consume all of them
 func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context.Context, messagesByNode int) error {
 	// create a bounded client to send messages between instances
+	runenv.RecordStart() // record start event
+	// emit a metric
+	runenv.R().RecordPoint("time-to-find", float64(time.Now().Unix()))
+
+	// emit a message
+	runenv.RecordMessage("Test plan started...")
 	client := sync.MustBoundClient(ctx, runenv)
 	defer client.Close()
 
@@ -66,13 +71,15 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 	var prod producer.Producer
 	var listn *TgSyncListener
 	var procsr *processor.Processor
-	var consumer *types.MockConsumer
+	var consumer TgSyncConsumer
 	var totalMessages = (runenv.TestInstanceCount - 1) * messagesByNode
 
 	// form queue name unique to this run, so we can avoid message conflicts
 	var testQueueName = fmt.Sprintf("queue_%s", runenv.TestRun)
 
-	st := sync.NewTopic(testQueueName, &message.DataMessage{})
+	st := sync.NewTopic(testQueueName, &message.DataMessage{
+		Id: uuid.New().String(),
+	})
 
 	tch := make(chan *message.DataMessage)
 
@@ -82,13 +89,12 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		// custom sync listener
 		_, err = client.Subscribe(ctx, st, tch)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		listn = &TgSyncListener{ListenChannel: tch}
 		// custom mock consumer
-		consumer = &types.MockConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool)}
-		consumer.On("ConsumeMessage", mock.Anything).Return(nil)
-		procsr = &processor.Processor{Producer: nil, Consumer: consumer, Listener: listn}
+		consumer = TgSyncConsumer{TotalCount: totalMessages, DoneChannel: make(chan bool), IdGen: int32(seq), Client: client}
+		procsr = &processor.Processor{Producer: nil, Consumer: &consumer, Listener: listn}
 
 		runenv.RecordMessage("Listening for messages")
 		go func() { procsr.StartProcessor() }()
@@ -101,10 +107,6 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 		}
 	}
 
-	if err != nil {
-		return err
-	}
-
 	testFunc := func() error {
 		if role == ConsumerRole {
 			// Wait for done signal by the consumer
@@ -114,16 +116,14 @@ func runTgSyncTest(runenv *runtime.RunEnv, initCtx *run.InitContext, ctx context
 			}
 		} else {
 			for i := 0; i < messagesByNode; i++ {
-				prod.ProduceMessage(fmt.Sprintf("Test message #%d #%d", i, seq))
+				msg := fmt.Sprintf("Test message #%d #%d", i, seq)
+				prod.ProduceMessage(msg)
+				runenv.RecordMessage("Producing message:" + msg)
 			}
 			runenv.RecordMessage("Finished producing messages")
 		}
 		return nil
 	}
-	err = testFunc()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return testFunc()
 }
